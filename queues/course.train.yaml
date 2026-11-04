@@ -1,0 +1,22 @@
+# All K1 velocity examples (example3-example10), trained back to back.
+# Run with: uv run train_queue queues/course.train.yaml
+#
+# The Furuta examples train on the CPU and are run directly instead:
+#   uv run train example1
+#   uv run train example2
+
+defaults:
+  num_envs: 4096
+  extra_args: []
+
+stop_on_failure: false
+
+tasks:
+  - task: example3
+  - task: example4
+  - task: example5
+  - task: example6
+  - task: example7
+  - task: example8
+  - task: example9
+  - task: example10
