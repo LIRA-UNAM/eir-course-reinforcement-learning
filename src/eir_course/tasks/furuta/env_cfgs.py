@@ -21,6 +21,11 @@ from eir_course.asset_zoo.robots.furuta.furuta_constants import (
 )
 from eir_course.tasks.furuta import mdp
 
+# Fastest pendulum speed (rad/s) example2 allows; also its Q-table's alpha_dot range.
+# A free fall from upright peaks at ~10.6 rad/s, so a swing-up passes ~11 rad/s:
+# 16 leaves headroom for that and still ends the ~40 rad/s spinning exploit.
+SWING_UP_MAX_PENDULUM_SPEED = 16.0
+
 
 def _joints() -> dict:
   return {"arm_cfg": mdp.arm_joint(), "pendulum_cfg": mdp.pendulum_joint()}
@@ -77,7 +82,7 @@ def _make_furuta_env_cfg(swing_up: bool) -> ManagerBasedRlEnvCfg:
       "pendulum_upright": RewardTermCfg(
         func=mdp.pendulum_upright,
         weight=1.0,
-        params={"pendulum_cfg": mdp.pendulum_joint()},
+        params={"pendulum_cfg": mdp.pendulum_joint(), "velocity_margin": 5.0},
       ),
       "arm_angle": RewardTermCfg(
         func=mdp.arm_angle_l2, weight=-0.1, params={"arm_cfg": mdp.arm_joint()}
@@ -101,7 +106,17 @@ def _make_furuta_env_cfg(swing_up: bool) -> ManagerBasedRlEnvCfg:
       params={"limit": 1.5 if swing_up else 1.2, "arm_cfg": mdp.arm_joint()},
     ),
   }
-  if not swing_up:
+  if swing_up:
+    # Spinning past the Q-table's alpha_dot range ends the episode:
+    # it forfeits all future reward, and keeps the state inside the table.
+    terminations["pendulum_too_fast"] = TerminationTermCfg(
+      func=mdp.pendulum_too_fast,
+      params={
+        "limit": SWING_UP_MAX_PENDULUM_SPEED,
+        "pendulum_cfg": mdp.pendulum_joint(),
+      },
+    )
+  else:
     # Swinging up *is* falling, so only the balance task ends on a fall.
     terminations["pendulum_fell"] = TerminationTermCfg(
       func=mdp.pendulum_fell,

@@ -1,4 +1,5 @@
-# Every course example (example1-example10), trained back to back.
+# All K1 velocity examples (example3-example10), trained back to back.
+# The Furuta examples have their own queue: queues/furuta.train.yaml
 # Run with: uv run train_queue queues/course.train.yaml
 
 defaults:
@@ -8,13 +9,6 @@ defaults:
 stop_on_failure: false
 
 tasks:
-  # Furuta pendulum, tabular Q-learning. 256 envs: the iteration budgets of
-  # these examples are sized for 256 envs x 24 steps per iteration.
-  - task: example1
-    num_envs: 256
-  - task: example2
-    num_envs: 256
-  # Booster K1 velocity, PPO.
   - task: example3
   - task: example4
   - task: example5

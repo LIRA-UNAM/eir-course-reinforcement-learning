@@ -5,7 +5,10 @@ from dataclasses import dataclass
 
 from mjlab.rl import RslRlBaseRunnerCfg
 
-WANDB_PROJECT = "eir_course"
+from eir_course.tasks.furuta.env_cfgs import SWING_UP_MAX_PENDULUM_SPEED
+
+# The Furuta runs have their own W&B project, apart from the K1 runs (eir_course).
+WANDB_PROJECT = "furuta_pendulum"
 
 
 @dataclass
@@ -54,8 +57,8 @@ def furuta_swingup_q_learning_cfg() -> QLearningRunnerCfg:
     experiment_name="example2",
     wandb_project=WANDB_PROJECT,
     bins=(21, 15, 7, 7),
-    state_low=(-math.pi, -12.0, -1.5, -10.0),
-    state_high=(math.pi, 12.0, 1.5, 10.0),
+    state_low=(-math.pi, -SWING_UP_MAX_PENDULUM_SPEED, -1.5, -10.0),
+    state_high=(math.pi, SWING_UP_MAX_PENDULUM_SPEED, 1.5, 10.0),
     # Wide bins where the pendulum swings through, narrow ones near upright.
     sqrt_spacing=(True, False, False, False),
     max_iterations=3000,

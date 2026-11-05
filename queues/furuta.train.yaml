@@ -1,0 +1,15 @@
+# Furuta pendulum examples (example1-example2, tabular Q-learning), trained back
+# to back. They log to the W&B project furuta_pendulum.
+# Run with: uv run train_queue queues/furuta.train.yaml
+
+defaults:
+  # The iteration budgets of these examples are sized for 256 envs x 24 steps
+  # per iteration.
+  num_envs: 256
+  extra_args: []
+
+stop_on_failure: false
+
+tasks:
+  - task: example1
+  - task: example2

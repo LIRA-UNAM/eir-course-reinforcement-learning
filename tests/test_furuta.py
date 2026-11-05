@@ -48,6 +48,13 @@ def test_examples_use_the_q_learning_runner():
     assert load_runner_cls(task) is QLearningRunner
 
 
+@pytest.mark.parametrize("task", FURUTA_EXAMPLES)
+def test_runs_log_to_the_furuta_project(task):
+  cfg = _q_cfg(task)
+  assert cfg.wandb_project == "furuta_pendulum"
+  assert cfg.experiment_name == task
+
+
 def test_arm_motor_is_the_k1_knee(balance_env):
   model = balance_env.unwrapped.sim.mj_model
   act = model.actuator(0)
@@ -76,6 +83,31 @@ def test_rewards_and_terminations():
   assert set(swingup.rewards) == {"pendulum_upright", "arm_angle", "arm_velocity"}
   assert "pendulum_fell" in balance.terminations
   assert "pendulum_fell" not in swingup.terminations
+  assert "pendulum_too_fast" in swingup.terminations
+  assert "pendulum_too_fast" not in balance.terminations
+
+
+def test_swingup_speed_limit_matches_the_table():
+  limit = load_env_cfg("example2").terminations["pendulum_too_fast"].params["limit"]
+  cfg = _q_cfg("example2")
+  assert (cfg.state_low[1], cfg.state_high[1]) == (-limit, limit)
+
+
+def test_upright_reward_pays_less_when_spinning(balance_env):
+  from eir_course.tasks.furuta import mdp
+
+  env = balance_env.unwrapped
+  robot = env.scene["robot"]
+  cfg = mdp.pendulum_joint()
+  cfg.resolve(env.scene)
+  joint = cfg.joint_ids
+  for speed, expected in ((0.0, 1.0), (5.0, 0.55), (40.0, 0.5)):
+    pos = torch.zeros_like(robot.data.joint_pos)
+    vel = torch.zeros_like(robot.data.joint_vel)
+    vel[:, joint] = speed
+    robot.write_joint_state_to_sim(pos, vel)
+    reward = mdp.pendulum_upright(env, cfg, velocity_margin=5.0)
+    assert reward == pytest.approx(torch.full_like(reward, expected), abs=1e-3)
 
 
 def test_pendulum_falls_from_near_upright(balance_env):
