@@ -1,0 +1,1 @@
+"""Furuta (rotary inverted) pendulum."""

@@ -116,19 +116,19 @@ Q-learning ([Watkins and Dayan, 1992](https://doi.org/10.1007/BF00992698)) store
 Q(s_t,a_t) \leftarrow Q(s_t,a_t) + \alpha\Big[r_t + \gamma \max_{a'} Q(s_{t+1},a') - Q(s_t,a_t)\Big]
 ```
 
-The policy is greedy: π(s) = argmax_a Q(s, a). It converges to the optimum if every (s, a) pair is visited infinitely often. That is the catch: every cell has to be **visited and stored**, and every step **maximizes** over all actions. The code is in `src/eir_course/tasks/furuta/q_learning.py`; the update is four lines.
+The policy is greedy: π(s) = argmax_a Q(s, a). It converges to the optimum if every (s, a) pair is visited infinitely often. That is the catch: every cell has to be **visited and stored**, and every step **maximizes** over all actions. The code is in `src/eir_course/tasks/furuta/runner.py`: a runner that plugs into mjlab's `train` and `play` in place of PPO, so the Furuta examples are mjlab tasks like the K1 ones.
 
 ### The Furuta pendulum examples
 
-Both examples discretize the state (α, α̇, θ, θ̇) into bins and use 7 discrete arm position targets. The arm motor is the K1 knee motor and the action scale follows the K1 rule s = 0.25 · τ_max / K_p.
+Both examples discretize the state (α, α̇, θ, θ̇) into bins and use 7 discrete arm position targets. The arm motor is the K1 knee motor (the same actuator config) and the action scale follows the K1 rule s = 0.25 · τ_max / K_p. 256 pendulums run in parallel and update one shared table.
 
 | | example1: balance | example2: swing-up + balance |
 | --- | --- | --- |
 | Start | within ±15° of upright | hanging down, at rest |
 | Q-table | 9 × 9 × 5 × 5 = 2025 states × 7 actions = 14 175 entries | 21 × 15 × 7 × 7 = 15 435 states × 7 actions = 108 045 entries |
-| Default training | 5000 episodes | 30 000 episodes |
+| Default training | 300 iterations (1.8 M transitions) | 3000 iterations (18.4 M transitions) |
 
-Going from balance to swing-up only widens the region of state space the agent must cover, yet the table grows 7.6×, and the agent needs far more experience to visit it. Try `uv run train example1 --bins 15 15 9 9` to watch the table explode, and follow `q_table/visited_fraction` in W&B.
+Going from balance to swing-up only widens the region of state space the agent must cover, yet the table grows 7.6×, and the agent needs far more experience to visit it. Try `uv run train example1 --agent.bins 15,15,9,9` to watch the table explode, and follow `q_table/visited_fraction` in W&B.
 
 ### Discretizing the action of a humanoid
 
@@ -191,7 +191,7 @@ The reward is a weighted sum of two kinds of terms. *Task* terms are positive an
 1. **It is a POMDP.** To be deployable, the actor sees neither the true linear velocity nor the terrain, and its observations carry uniform noise: ±0.2 rad/s on the gyro, ±1.5 rad/s on joint velocities, ±0.01 rad on positions, plus a fixed encoder bias. The critic gets privileged information (contacts, forces, foot heights, unbiased positions). This is *asymmetric actor-critic* ([Pinto et al., RSS 2018](https://roboticsproceedings.org/rss14/p08.html)): the critic is only used in training, so it may "cheat".
 2. **It is a contextual MDP.** The command c = (v*_x, v*_y, ω*_z) defines a different task in every episode; the policy is π(a | o, c) and the reward depends on c ([Hallak et al., 2015](https://arxiv.org/abs/1502.02259)). The command also changes within the episode (every 3–8 s), and heading is closed with a P controller (k = 0.5).
 3. **Some reward pieces are not Markovian in the observation.** `action_rate_l2` depends on a_{t−1}, `air_time` on an air-time counter, and `foot_swing_height` stores the foot's peak height since lift-off. They are made Markovian either by putting the variable in the observation (the last action) or by giving it to the critic (air time, contacts).
-4. **Truncation ≠ termination.** A *time-out* is not a terminal state. rsl_rl *bootstraps* it: r ← r + γ V(s) at the cut step (`rsl_rl/algorithms/ppo.py`), as recommended by [Pardo et al. (ICML 2018)](https://proceedings.mlr.press/v80/pardo18a.html). A fall is terminal and ends the return. The Furuta Q-learning update makes the same distinction: a terminal target is `r`, a time-out target is `r + γ max Q`.
+4. **Truncation ≠ termination.** A *time-out* is not a terminal state. rsl_rl *bootstraps* it: r ← r + γ V(s) at the cut step (`rsl_rl/algorithms/ppo.py`), as recommended by [Pardo et al. (ICML 2018)](https://proceedings.mlr.press/v80/pardo18a.html). A fall is terminal and ends the return. The Furuta Q-learning runner makes the same distinction: a terminal target is `r`, a time-out target is `r + γ max_a Q(s, a)`, bootstrapped from the current state like PPO because mjlab has already reset the episode.
 5. **The reward is shaped, and that changes the optimum.** [Ng, Harada and Russell (ICML 1999)](https://mlanthology.org/icml/1999/ng1999icml-policy/) show that only potential-based shaping, F = γΦ(s′) − Φ(s), preserves the optimal policy. mjlab's terms are not of that form: they are deliberate preferences (smooth gait, feet up, soft impacts), not just learning aids, which is why the weights matter. example3 → example9 show the effect of each pair.
 6. **It is non-stationary.** The command curriculum widens the velocity ranges (the course fixes them instead) and the terrain curriculum raises difficulty, so P and the context distribution change during training. Domain randomization (friction, CoM, gains) makes each environment a slightly different MDP: strictly, the expected return is optimized over a *family* of MDPs (example10).
 7. **Short horizon, long episode.** With γ = 0.99 the policy "looks" ~2 s ahead even though the episode lasts 20 s. That is enough for a step or two of implicit planning, and keeps the estimator's variance low.
@@ -424,7 +424,7 @@ MuJoCo combines two things RL locomotion needs at once: a contact model that is 
 
 - **Robust contact with large steps.** dt = 0.005 s with decimation 4. MuJoCo solves contact as a convex problem with soft constraints (`solref`, `solimp`), avoiding the numerical blow-ups of spring-damper models, and those parameters can be *randomized* (example10 randomizes the terrain's `solref` and `solimp`).
 - **Actuator modelling.** Armature (reflected rotor inertia), effort limits and PD gains are first-class in MJCF. This matters for sim-to-real: K1 uses the manufacturer's motor armatures and limits, and so does the Furuta arm in example1/2.
-- **Same physics on CPU and GPU.** MuJoCo Warp is the GPU version of the same model, maintained by Google DeepMind and NVIDIA. Train on the GPU and validate on classic MuJoCo (sim2sim) with the same MJCF. The Furuta examples run on plain CPU MuJoCo.
+- **Same physics on CPU and GPU.** MuJoCo Warp is the GPU version of the same model, maintained by Google DeepMind and NVIDIA. Train on the GPU and validate on classic MuJoCo (sim2sim) with the same MJCF. The Furuta examples run on the same stack, and also train on a CPU, more slowly.
 - **Transparency.** `mjModel` and `mjData` are flat, inspectable structures, and the interactive viewer helps debug contacts and forces.
 
 ### Honest trade-offs

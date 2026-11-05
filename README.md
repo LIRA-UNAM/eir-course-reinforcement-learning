@@ -10,8 +10,8 @@ The lecture notes are in [docs/lecture.md](docs/lecture.md), and each example ha
 
 | Example | Task | Method | New in this example | Train on |
 | --- | --- | --- | --- | --- |
-| [example1](docs/examples/example1.md) | Furuta pendulum: balance | Tabular Q-learning | 2025-state table, 7 position targets | Any CPU, minutes |
-| [example2](docs/examples/example2.md) | Furuta pendulum: swing-up + balance | Tabular Q-learning | 15 435-state table (7.6×) | Any CPU, ~10 min |
+| [example1](docs/examples/example1.md) | Furuta pendulum: balance | Tabular Q-learning | 2025-state table, 7 position targets | GPU ~1 min, CPU ~5 min |
+| [example2](docs/examples/example2.md) | Furuta pendulum: swing-up + balance | Tabular Q-learning | 15 435-state table (7.6×) | GPU ~6 min, CPU ~40 min |
 | [example3](docs/examples/example3.md) | K1 velocity, flat | PPO | `track_linear_velocity`, `track_angular_velocity` | NVIDIA GPU |
 | [example4](docs/examples/example4.md) | K1 velocity, flat | PPO | `upright`, `pose` | NVIDIA GPU |
 | [example5](docs/examples/example5.md) | K1 velocity, flat | PPO | `action_rate_l2`, `dof_pos_limits` | NVIDIA GPU |
@@ -37,7 +37,7 @@ The project is built on [mjlab](https://github.com/mujocolab/mjlab) 1.6.0 with M
 
 **Hardware.**
 
-- **example1 and example2** train and play on any Linux or macOS computer, CPU only (on Windows, use WSL).
+- **example1 and example2** train fastest on an NVIDIA GPU (about 1 and 6 minutes on a laptop GPU), and also train on a CPU: about 5 minutes for example1 and 40 minutes for example2.
 - **example3–example10** need Linux with an NVIDIA GPU (CUDA 12.4+ recommended) to *train*. You can *play* the pretrained policies on any computer; without a GPU they run on the CPU, more slowly. You do not need a GPU to follow the course: every example ships with a trained policy.
 
 ## Run an example
@@ -54,17 +54,16 @@ uv run play example3 --checkpoint-file logs/rsl_rl/example3/<run>/model_9999.pt
 
 - `play` looks for a policy in this order: `--wandb-run-path`, `--checkpoint-file`, then the pretrained file in `checkpoints/<example>/`.
 - Add `--help` after an example name to see all options, for example `uv run train example2 --help`.
-- `uv run list_envs` lists the registered mjlab tasks, including example3–example10. example1 and example2 are plain MuJoCo + NumPy and are not in that list.
+- All ten examples are mjlab tasks: `uv run list_envs` lists them. example1 and example2 plug a tabular Q-learning runner into mjlab's `train` and `play` in place of PPO. Its settings are CLI flags too, e.g. `uv run train example1 --agent.bins 15,15,9,9`.
 - To train every K1 example back to back on a GPU machine: `uv run train_queue queues/course.train.yaml`.
 
 ## Weights & Biases
 
 Training logs to the W&B project `eir_course`. Log in once with `uv run wandb login`, or train offline:
 
-- Furuta examples: `uv run train example1 --no-wandb`.
-- K1 examples: `WANDB_MODE=offline uv run train example3`.
+`WANDB_MODE=offline uv run train exampleN` trains without a W&B account.
 
-The Furuta examples log their return, success rate, Q-table coverage, heatmaps of the Q-table and a video of the final policy. The K1 examples log every reward term separately (`Episode_Reward/<term>`).
+Every example logs each reward term separately (`Episode_Reward/<term>`). The Furuta examples also log their success rate, Q-table coverage and heatmaps of the Q-table. Add `--video` to record training videos.
 
 ## Repository layout
 
@@ -72,7 +71,7 @@ The Furuta examples log their return, success rate, Q-table coverage, heatmaps o
 src/eir_course/
   asset_zoo/robots/furuta/       Furuta pendulum MJCF (arm motor = K1 knee motor)
   asset_zoo/robots/k1/           Booster K1 model, motors and actuator config
-  tasks/furuta/                  example1-2: environment, discretizer, Q-learning
+  tasks/furuta/                  example1-2: mjlab env config, discretizer, Q-learning runner
   tasks/velocity/config/k1/      example3-10: env configs, reward groups, PPO config
   scripts/                       train / play dispatchers, train_queue
 docs/lecture.md                  lecture notes (questions 0-8)

@@ -1,9 +1,8 @@
 """``uv run play <example>``.
 
-example1 and example2 (Furuta pendulum) run the greedy Q-table policy in the
-MuJoCo viewer. Every other task ID runs mjlab's play script with the Viser
-viewer by default (``--viewer native`` for a desktop window), which adds an
-interactive velocity-command joystick for the K1 examples.
+Runs mjlab's play script with the Viser viewer by default (``--viewer native``
+for a desktop window), which adds an interactive velocity-command joystick for
+the K1 examples.
 
 Policy source, in order: ``--wandb-run-path``, ``--checkpoint-file``, then the
 pretrained checkpoint shipped in ``checkpoints/<example>/``.
@@ -11,8 +10,6 @@ pretrained checkpoint shipped in ``checkpoints/<example>/``.
 
 import sys
 from pathlib import Path
-
-from eir_course.tasks.furuta.tasks import TASKS as FURUTA_TASKS
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 CHECKPOINT_NAME = "model.pt"
@@ -60,12 +57,6 @@ def _play_mjlab(task_id: str, args: list[str]) -> None:
 
 
 def main() -> None:
-  if len(sys.argv) > 1 and sys.argv[1] in FURUTA_TASKS:
-    from eir_course.tasks.furuta.q_learning import play_main
-
-    play_main(sys.argv[1], sys.argv[2:])
-    return
-
   import mjlab.tasks  # noqa: F401  (populates the task registry)
   from mjlab.scripts._cli import maybe_print_top_level_help
   from mjlab.tasks.registry import list_tasks
@@ -74,10 +65,7 @@ def main() -> None:
   tasks = list_tasks()
   if len(sys.argv) < 2 or sys.argv[1] not in tasks:
     names = ", ".join(
-      sorted(
-        [*FURUTA_TASKS, *(t for t in tasks if t.startswith("example"))],
-        key=lambda s: int(s[7:]),
-      )
+      sorted((t for t in tasks if t.startswith("example")), key=lambda s: int(s[7:]))
     )
     sys.exit(f"usage: play <task> [options]\n  course examples: {names}")
   _play_mjlab(sys.argv[1], sys.argv[2:])

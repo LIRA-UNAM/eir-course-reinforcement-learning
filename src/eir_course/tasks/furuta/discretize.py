@@ -1,42 +1,62 @@
-"""Map a continuous state to a single Q-table row index."""
+"""Map batches of continuous states to Q-table row indices."""
 
 from __future__ import annotations
 
-import numpy as np
-
-from eir_course.tasks.furuta.tasks import StateDim
+import torch
 
 
-def bin_edges(dim: StateDim) -> np.ndarray:
-  """Interior edges of ``dim`` (``bins - 1`` values between ``low`` and ``high``)."""
-  if not dim.sqrt_spacing:
-    return np.linspace(dim.low, dim.high, dim.bins + 1)[1:-1]
-  # Uniform in u = sign(x) * sqrt(|x| / h), mapped back to x = sign(u) * u^2 * h.
-  # This assumes a symmetric range (low = -high).
-  h = dim.high
-  u = np.linspace(-1.0, 1.0, dim.bins + 1)[1:-1]
-  return np.sign(u) * u**2 * h
+def bin_edges(
+  bins: int, low: float, high: float, sqrt_spacing: bool = False
+) -> torch.Tensor:
+  """The ``bins - 1`` interior edges between ``low`` and ``high``.
+
+  With ``sqrt_spacing`` the edges are uniform in u = sign(x) sqrt(|x| / high),
+  which packs them densely near 0. That assumes a symmetric range (low = -high).
+  """
+  if not sqrt_spacing:
+    return torch.linspace(low, high, bins + 1)[1:-1]
+  u = torch.linspace(-1.0, 1.0, bins + 1)[1:-1]
+  return torch.sign(u) * u**2 * high
 
 
 class Discretizer:
-  """Tabular state index from (alpha, alpha_dot, theta, theta_dot).
+  """Tabular state index for each row of a [num_envs, num_dims] state batch.
 
   Values outside a dimension's range fall into its first or last bin.
   """
 
-  def __init__(self, dims: tuple[StateDim, ...]):
-    self.dims = dims
-    self.edges = [bin_edges(d) for d in dims]
-    self.shape = tuple(d.bins for d in dims)
-    self.num_states = int(np.prod(self.shape))
+  def __init__(
+    self,
+    bins: tuple[int, ...],
+    low: tuple[float, ...],
+    high: tuple[float, ...],
+    sqrt_spacing: tuple[bool, ...],
+    device: str | torch.device = "cpu",
+  ):
+    self.shape = tuple(bins)
+    self.num_states = 1
+    for b in self.shape:
+      self.num_states *= b
+    self.edges = [
+      bin_edges(b, lo, hi, sq).to(device)
+      for b, lo, hi, sq in zip(bins, low, high, sqrt_spacing, strict=True)
+    ]
+    # Row-major strides, so index = sum(bin_i * stride_i).
+    strides = [1] * len(self.shape)
+    for i in range(len(self.shape) - 2, -1, -1):
+      strides[i] = strides[i + 1] * self.shape[i + 1]
+    self.strides = torch.tensor(strides, device=device)
 
-  def bins(self, state: np.ndarray) -> tuple[int, ...]:
-    """Per-dimension bin indices."""
-    return tuple(
-      int(np.searchsorted(e, x, side="right"))
-      for e, x in zip(self.edges, state, strict=True)
+  def bins(self, states: torch.Tensor) -> torch.Tensor:
+    """Per-dimension bin indices. Shape: [num_envs, num_dims]."""
+    return torch.stack(
+      [
+        torch.bucketize(states[:, i].contiguous(), edges, right=True)
+        for i, edges in enumerate(self.edges)
+      ],
+      dim=-1,
     )
 
-  def index(self, state: np.ndarray) -> int:
-    """Flat Q-table row for ``state``."""
-    return int(np.ravel_multi_index(self.bins(state), self.shape))
+  def index(self, states: torch.Tensor) -> torch.Tensor:
+    """Flat Q-table row for each state. Shape: [num_envs]."""
+    return (self.bins(states) * self.strides).sum(dim=-1)

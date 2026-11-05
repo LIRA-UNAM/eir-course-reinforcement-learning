@@ -4,42 +4,27 @@
   The arm turns about the vertical axis and carries the pendulum on a hinge
   aligned with the arm. Pendulum angle 0 = upright, pi = hanging down.
 
-  The arm is driven by the same motor model as the Booster K1 knee pitch
-  (ACTUATOR_E6416 in asset_zoo/robots/k1/k1_constants.py): a position
-  actuator with kp = 80 N*m/rad, kv = 4 N*m*s/rad, +-112 N*m and a reflected
-  rotor inertia (armature) of 0.095625 kg*m^2.
+  The arm actuator is not defined here: furuta_constants.py attaches the
+  Booster K1 knee pitch motor (ACTUATOR_E6416), which also sets the arm's
+  armature (reflected rotor inertia).
 -->
 <mujoco model="furuta">
   <compiler angle="radian" autolimits="true"/>
 
-  <option timestep="0.005" integrator="implicitfast"/>
-
-  <visual>
-    <global offwidth="1280" offheight="720"/>
-    <headlight ambient="0.4 0.4 0.4" diffuse="0.6 0.6 0.6"/>
-  </visual>
-
   <asset>
-    <texture name="grid" type="2d" builtin="checker" rgb1="0.2 0.3 0.4" rgb2="0.1 0.15 0.2"
-             width="512" height="512" mark="cross" markrgb="0.8 0.8 0.8"/>
-    <material name="grid" texture="grid" texrepeat="4 4" reflectance="0.1"/>
     <material name="base" rgba="0.3 0.3 0.35 1"/>
     <material name="arm" rgba="0.2 0.5 0.8 1"/>
     <material name="pendulum" rgba="0.9 0.5 0.1 1"/>
   </asset>
 
   <worldbody>
-    <light pos="0 0 3" dir="0 0 -1" diffuse="0.8 0.8 0.8"/>
-    <geom name="floor" type="plane" size="2 2 0.1" material="grid"/>
-    <!-- Fixed point at mid-pendulum height for the camera to aim at. -->
-    <body name="camera_target" pos="0.15 0 0.75"/>
-    <camera name="front" pos="1.3 -1.3 1.25" mode="targetbody" target="camera_target"/>
+    <light name="light" pos="0 0 3" dir="0 0 -1" diffuse="0.8 0.8 0.8"/>
 
     <!-- Pedestal holding the arm motor. -->
     <geom name="pedestal" type="cylinder" fromto="0 0 0 0 0 0.5" size="0.05" material="base"/>
 
     <body name="arm" pos="0 0 0.55">
-      <joint name="arm" type="hinge" axis="0 0 1" armature="0.095625" damping="0.0"/>
+      <joint name="arm" type="hinge" axis="0 0 1"/>
       <geom name="hub" type="cylinder" fromto="0 0 -0.05 0 0 0.02" size="0.04" material="base"/>
       <geom name="arm" type="capsule" fromto="0 0 0 0.3 0 0" size="0.015" material="arm"/>
 
@@ -51,8 +36,4 @@
       </body>
     </body>
   </worldbody>
-
-  <actuator>
-    <position name="arm" joint="arm" kp="80" kv="4" forcerange="-112 112"/>
-  </actuator>
 </mujoco>

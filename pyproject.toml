@@ -69,7 +69,7 @@ dev = [
 ]
 
 [project.scripts]
-train = "eir_course.scripts.train:main"
+train = "mjlab.scripts.train:main"
 play = "eir_course.scripts.play:main"
 list_envs = "mjlab.scripts.list_envs:main"
 train_queue = "eir_course.scripts.train_queue:main"
