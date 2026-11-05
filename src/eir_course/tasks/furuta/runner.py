@@ -8,6 +8,7 @@ It provides the methods those scripts call: ``learn``, ``save``, ``load``,
 
 from __future__ import annotations
 
+import datetime
 import time
 from collections import defaultdict
 from pathlib import Path
@@ -44,6 +45,7 @@ class QLearningRunner:
     self.current_learning_iteration = 0
     self.generator = torch.Generator(device=device).manual_seed(train_cfg["seed"])
     self.wandb_run = None
+    self._learn_start_it = 0
 
   def _build_table(self, bins, low, high, sqrt_spacing) -> None:
     self.disc_settings = {
@@ -111,7 +113,7 @@ class QLearningRunner:
     balanced = torch.zeros(num_envs, dtype=torch.long, device=self.device)
     ones = torch.ones(num_envs, device=self.device)
 
-    start_it = self.current_learning_iteration
+    start_it = self._learn_start_it = self.current_learning_iteration
     decay_its = max(1, int(cfg["epsilon_decay_fraction"] * num_learning_iterations))
     total_steps = 0
     start_time = time.time()
@@ -267,6 +269,11 @@ class QLearningRunner:
         f"return {ret}  success {success}  visited {visited:6.1%}  "
         f"{steps_per_s:9.0f} steps/s  {elapsed:6.0f} s"
       )
+      # Same format as rsl_rl's logger, which train_queue reads for its progress bar.
+      done = it + 1 - self._learn_start_it
+      eta = elapsed / done * (num_learning_iterations - done)
+      print(f"Time elapsed: {datetime.timedelta(seconds=int(elapsed))}")
+      print(f"ETA: {datetime.timedelta(seconds=int(eta))}", flush=True)
 
     if self.wandb_run is None:
       return

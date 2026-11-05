@@ -55,7 +55,7 @@ uv run play example3 --checkpoint-file logs/rsl_rl/example3/<run>/model_9999.pt
 - `play` looks for a policy in this order: `--wandb-run-path`, `--checkpoint-file`, then the pretrained file in `checkpoints/<example>/`.
 - Add `--help` after an example name to see all options, for example `uv run train example2 --help`.
 - All ten examples are mjlab tasks: `uv run list_envs` lists them. example1 and example2 plug a tabular Q-learning runner into mjlab's `train` and `play` in place of PPO. Its settings are CLI flags too, e.g. `uv run train example1 --agent.bins 15,15,9,9`.
-- To train every K1 example back to back on a GPU machine: `uv run train_queue queues/course.train.yaml`.
+- To train every example back to back on a GPU machine: `uv run train_queue queues/course.train.yaml`.
 
 ## Weights & Biases
 
@@ -73,11 +73,11 @@ src/eir_course/
   asset_zoo/robots/k1/           Booster K1 model, motors and actuator config
   tasks/furuta/                  example1-2: mjlab env config, discretizer, Q-learning runner
   tasks/velocity/config/k1/      example3-10: env configs, reward groups, PPO config
-  scripts/                       train / play dispatchers, train_queue
+  scripts/                       play wrapper, train_queue
 docs/lecture.md                  lecture notes (questions 0-8)
 docs/examples/                   one guide per example
 checkpoints/                     pretrained policies
-queues/course.train.yaml         train example3-10 back to back
+queues/course.train.yaml         train example1-10 back to back
 tests/                           uv run pytest
 ```
 
