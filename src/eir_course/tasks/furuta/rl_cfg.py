@@ -46,8 +46,9 @@ def furuta_balance_q_learning_cfg() -> QLearningRunnerCfg:
   return QLearningRunnerCfg(
     experiment_name="example1",
     wandb_project=WANDB_PROJECT,
-    max_iterations=300,
-    save_interval=100,
+    max_iterations=10_000,
+    save_interval=2_000,
+    image_interval=1_000
   )
 
 
@@ -61,7 +62,7 @@ def furuta_swingup_q_learning_cfg() -> QLearningRunnerCfg:
     state_high=(math.pi, SWING_UP_MAX_PENDULUM_SPEED, 1.5, 10.0),
     # Wide bins where the pendulum swings through, narrow ones near upright.
     sqrt_spacing=(True, False, False, False),
-    max_iterations=3000,
-    save_interval=500,
-    image_interval=250,
+    max_iterations=10_000,
+    save_interval=2_000,
+    image_interval=1_000,
   )

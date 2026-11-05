@@ -23,8 +23,8 @@ from eir_course.tasks.furuta import mdp
 
 # Fastest pendulum speed (rad/s) example2 allows; also its Q-table's alpha_dot range.
 # A free fall from upright peaks at ~10.6 rad/s, so a swing-up passes ~11 rad/s:
-# 16 leaves headroom for that and still ends the ~40 rad/s spinning exploit.
-SWING_UP_MAX_PENDULUM_SPEED = 16.0
+# 20 leaves headroom for that and still ends the ~40 rad/s spinning exploit.
+SWING_UP_MAX_PENDULUM_SPEED = 20.0
 
 
 def _joints() -> dict:
@@ -53,14 +53,14 @@ def _make_furuta_env_cfg(swing_up: bool) -> ManagerBasedRlEnvCfg:
     ),
   }
 
-  pendulum_range = (0.0, 0.0) if swing_up else (-math.radians(15), math.radians(15))
+  pendulum_range = (0.0, 0.0) if swing_up else (-math.radians(90), math.radians(90))
   events = {
     "reset_arm": EventTermCfg(
       func=reset_joints_by_offset,
       mode="reset",
       params={
-        "position_range": (0.0, 0.0),
-        "velocity_range": (0.0, 0.0),
+        "position_range": (-math.pi, math.pi),
+        "velocity_range": (-20.0, 20.0),
         "asset_cfg": mdp.arm_joint(),
       },
     ),
@@ -69,7 +69,7 @@ def _make_furuta_env_cfg(swing_up: bool) -> ManagerBasedRlEnvCfg:
       mode="reset",
       params={
         "position_range": pendulum_range,
-        "velocity_range": (0.0, 0.0),
+        "velocity_range": (-40.0, 40.0),
         "asset_cfg": mdp.pendulum_joint(),
       },
     ),
@@ -138,7 +138,7 @@ def _make_furuta_env_cfg(swing_up: bool) -> ManagerBasedRlEnvCfg:
     viewer=ViewerConfig(
       origin_type=ViewerConfig.OriginType.ASSET_BODY,
       entity_name="robot",
-      body_name="arm",
+      body_name="base",
       distance=1.8,
       elevation=-20.0,
       azimuth=135.0,
