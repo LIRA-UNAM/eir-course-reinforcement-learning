@@ -50,7 +50,7 @@ Training needs a Linux machine with an NVIDIA GPU. Playing works on any machine.
 
 ```bash
 uv run train example8 --env.scene.num-envs 4096
-uv run play example8                                      # pretrained policy from checkpoints/example8/
+uv run play example8 --checkpoint models/example8.pt   # course: pretrained policy, no W&B needed
 uv run play example8 --wandb-run-path <entity>/eir_course/<run_id>
 uv run play example8 --checkpoint-file logs/rsl_rl/example8/<run>/model_9999.pt
 ```

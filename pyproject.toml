@@ -70,7 +70,6 @@ dev = [
 
 [project.scripts]
 train = "mjlab.scripts.train:main"
-play = "mjlab.scripts.play:main"
 list_envs = "mjlab.scripts.list_envs:main"
 train_queue = "eir_course.scripts.train_queue:main"
 
