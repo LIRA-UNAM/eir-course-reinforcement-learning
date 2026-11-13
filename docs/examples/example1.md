@@ -41,7 +41,7 @@ q[s, a] += learning_rate * mean(target - q[s, a])
 ```bash
 uv run train example1                          # logs to the W&B project furuta_pendulum
 WANDB_MODE=offline uv run train example1       # no W&B account needed
-uv run play example1                           # pretrained Q-table from checkpoints/example1/
+uv run play example1 --checkpoint models/example1.pt   # course: pretrained Q-table, no W&B needed
 uv run play example1 --checkpoint-file logs/rsl_rl/example1/<run>/model_299.pt
 uv run play example1 --wandb-run-path <entity>/furuta_pendulum/<run_id>
 ```

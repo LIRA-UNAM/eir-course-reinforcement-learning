@@ -1,37 +1,61 @@
-"""``uv run play <example>``.
+"""Course defaults for ``uv run play <example>``.
 
-Runs mjlab's play script with the Viser viewer by default (``--viewer native``
-for a desktop window), which adds an interactive velocity-command joystick for
-the K1 examples.
+``play`` is mjlab's own script (``mjlab.scripts.play``). mjlab imports this
+package through its ``mjlab.tasks`` entry point before it parses the command
+line, and ``eir_course/__init__.py`` then calls :func:`patch_play_argv`, which
+adjusts ``sys.argv`` in place:
 
-Policy source, in order: ``--wandb-run-path``, ``--checkpoint-file``, then the
-pretrained checkpoint shipped in ``checkpoints/<example>/``.
+- ``--checkpoint X`` is a short form of ``--checkpoint-file X``, so course
+  attendees can run ``uv run play exampleN --checkpoint models/exampleN.pt``.
+- With no ``--wandb-run-path`` / ``--checkpoint-file`` (and a trained agent),
+  the pretrained ``models/<example>.pt`` is loaded.
+- The Viser viewer is the default (``--viewer native`` for a desktop window);
+  it adds an interactive velocity-command joystick for the K1 examples.
+
+Policy source, in order: ``--wandb-run-path``, ``--checkpoint`` /
+``--checkpoint-file``, then ``models/<example>.pt``.
 """
 
 import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-CHECKPOINT_NAME = "model.pt"
+MODELS_DIR = "models"
+_HELP = ("-h", "--help")
 
 
 def _has_flag(args: list[str], *flags: str) -> bool:
   return any(a == f or a.startswith(f + "=") for a in args for f in flags)
 
 
+def _expand_checkpoint_alias(args: list[str]) -> list[str]:
+  """Rewrite ``--checkpoint X`` / ``--checkpoint=X`` to ``--checkpoint-file X``."""
+  out: list[str] = []
+  for a in args:
+    if a == "--checkpoint":
+      out.append("--checkpoint-file")
+    elif a.startswith("--checkpoint="):
+      out.append("--checkpoint-file=" + a.split("=", 1)[1])
+    else:
+      out.append(a)
+  return out
+
+
 def _shipped_checkpoint(task_id: str) -> Path | None:
   for root in (Path.cwd(), REPO_ROOT):
-    path = root / "checkpoints" / task_id / CHECKPOINT_NAME
+    path = root / MODELS_DIR / f"{task_id}.pt"
     if path.exists():
       return path
   return None
 
 
-def _play_mjlab(task_id: str, args: list[str]) -> None:
-  import mjlab
-  import tyro
-  from mjlab.scripts.play import PlayConfig, run_play
-
+def course_play_args(task_id: str, args: list[str]) -> list[str]:
+  """Return ``args`` (everything after the task name) with the course defaults."""
+  args = _expand_checkpoint_alias(args)
+  if any(a in _HELP for a in args):
+    return args
+  if not _has_flag(args, "--viewer"):
+    args = [*args, "--viewer", "viser"]
   dummy_agent = any(a in ("zero", "random") for a in args)
   has_source = _has_flag(
     args,
@@ -45,30 +69,25 @@ def _play_mjlab(task_id: str, args: list[str]) -> None:
     if checkpoint is not None:
       print(f"[INFO] Using the pretrained checkpoint {checkpoint}")
       args = [*args, "--checkpoint-file", str(checkpoint)]
+  return args
 
-  cfg = tyro.cli(
-    PlayConfig,
-    args=args,
-    default=PlayConfig(viewer="viser"),
-    prog=f"play {task_id}",
-    config=mjlab.TYRO_FLAGS,
-  )
-  run_play(task_id, cfg)
+
+def patch_play_argv(argv: list[str] = sys.argv) -> None:
+  """Apply :func:`course_play_args` to ``argv`` in place when running ``play``."""
+  if len(argv) < 2 or Path(argv[0]).name not in ("play", "play.exe"):
+    return
+  if argv[1].startswith("-"):
+    return
+  argv[2:] = course_play_args(argv[1], argv[2:])
 
 
 def main() -> None:
-  import mjlab.tasks  # noqa: F401  (populates the task registry)
-  from mjlab.scripts._cli import maybe_print_top_level_help
-  from mjlab.tasks.registry import list_tasks
+  """``python -m eir_course.scripts.play <example> [options]``."""
+  from mjlab.scripts.play import main as mjlab_play
 
-  maybe_print_top_level_help("play")
-  tasks = list_tasks()
-  if len(sys.argv) < 2 or sys.argv[1] not in tasks:
-    names = ", ".join(
-      sorted((t for t in tasks if t.startswith("example")), key=lambda s: int(s[7:]))
-    )
-    sys.exit(f"usage: play <task> [options]\n  course examples: {names}")
-  _play_mjlab(sys.argv[1], sys.argv[2:])
+  sys.argv[0] = "play"
+  patch_play_argv(sys.argv)
+  mjlab_play()
 
 
 if __name__ == "__main__":

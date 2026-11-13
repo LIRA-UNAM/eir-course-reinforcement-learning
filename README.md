@@ -38,32 +38,56 @@ The project is built on [mjlab](https://github.com/mujocolab/mjlab) 1.6.0 with M
 **Hardware.**
 
 - **example1 and example2** train fastest on an NVIDIA GPU (about 1 and 6 minutes on a laptop GPU), and also train on a CPU: about 5 minutes for example1 and 40 minutes for example2.
-- **example3–example10** need Linux with an NVIDIA GPU (CUDA 12.4+ recommended) to *train*. You can *play* the pretrained policies on any computer; without a GPU they run on the CPU, more slowly. You do not need a GPU to follow the course: every example ships with a trained policy.
+- **example3–example10** need Linux with an NVIDIA GPU (CUDA 12.4+ recommended) to *train*. You can *play* the pretrained policies on any computer; without a GPU they run on the CPU, more slowly. You do not need a GPU to follow the course: every example ships with a trained policy in `models/`.
 
-## Run an example
+## Part 1 — Course: run the pretrained examples
+
+This is all you need for the course. Every example ships with a trained policy in [models/](models/), so you need no W&B account, no login and no GPU.
+
+```bash
+uv run play example1 --checkpoint models/example1.pt
+uv run play example2 --checkpoint models/example2.pt
+uv run play example3 --checkpoint models/example3.pt
+uv run play example4 --checkpoint models/example4.pt
+uv run play example5 --checkpoint models/example5.pt
+uv run play example6 --checkpoint models/example6.pt
+uv run play example7 --checkpoint models/example7.pt
+uv run play example8 --checkpoint models/example8.pt
+uv run play example9 --checkpoint models/example9.pt
+uv run play example10 --checkpoint models/example10.pt
+```
+
+- `play` opens the Viser viewer in your browser (the K1 examples add a velocity-command joystick). Add `--viewer native` for a desktop MuJoCo window instead.
+- Without an NVIDIA GPU the policy runs on the CPU, more slowly. Add `--num-envs 1` if it feels sluggish.
+- Add `--help` after an example name to see all options, for example `uv run play example3 --help`.
+
+## Part 2 — Train your own policies (W&B)
+
+This part is for training the examples yourself and loading runs from Weights & Biases.
 
 ```bash
 uv run train example1                     # train
-uv run play example1                      # watch the pretrained policy (checkpoints/example1/)
+uv run play example1 --checkpoint-file logs/rsl_rl/example1/<run>/model_9999.pt
 
 uv run train example3 --env.scene.num-envs 4096
-uv run play example3                      # pretrained policy, Viser viewer with a velocity joystick
 uv run play example3 --wandb-run-path <entity>/eir_course/<run_id>
 uv run play example3 --checkpoint-file logs/rsl_rl/example3/<run>/model_9999.pt
 ```
 
-- `play` looks for a policy in this order: `--wandb-run-path`, `--checkpoint-file`, then the pretrained file in `checkpoints/<example>/`.
+- `play` looks for a policy in this order: `--wandb-run-path`, `--checkpoint-file` (or its short form `--checkpoint`), then `models/<example>.pt`.
 - Add `--help` after an example name to see all options, for example `uv run train example2 --help`.
 - All ten examples are mjlab tasks: `uv run list_envs` lists them. example1 and example2 plug a tabular Q-learning runner into mjlab's `train` and `play` in place of PPO. Its settings are CLI flags too, e.g. `uv run train example1 --agent.bins 15,15,9,9`.
 - To train back to back: `uv run train_queue queues/furuta.train.yaml` (example1–example2) and `uv run train_queue queues/course.train.yaml` (example3–example10, GPU machine).
 
-## Weights & Biases
+### Weights & Biases
 
 Training logs to two W&B projects: `furuta_pendulum` for example1–example2 and `eir_course` for example3–example10. Log in once with `uv run wandb login`, or train offline:
 
 `WANDB_MODE=offline uv run train exampleN` trains without a W&B account.
 
 Every example logs each reward term separately (`Episode_Reward/<term>`). The Furuta examples also log their success rate, Q-table coverage and heatmaps of the Q-table. Add `--video` to record training videos.
+
+`--wandb-run-path <entity>/<project>/<run_id>` downloads a run's checkpoint and lets the Viser viewer switch between its checkpoints. It needs `uv run wandb login` and access to that W&B project.
 
 ## Repository layout
 
@@ -76,7 +100,7 @@ src/eir_course/
   scripts/                       play wrapper, train_queue
 docs/lecture.md                  lecture notes (questions 0-8)
 docs/examples/                   one guide per example
-checkpoints/                     pretrained policies
+models/                          pretrained policies (exampleN.pt)
 queues/furuta.train.yaml         train example1-2 back to back
 queues/course.train.yaml         train example3-10 back to back
 tests/                           uv run pytest

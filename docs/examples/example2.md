@@ -34,7 +34,7 @@ Three design choices are worth discussing in class:
 ```bash
 uv run train example2
 uv run train example2 --agent.max-iterations 6000     # more experience for the bigger table
-uv run play example2                                   # pretrained Q-table from checkpoints/example2/
+uv run play example2 --checkpoint models/example2.pt   # course: pretrained Q-table, no W&B needed
 uv run play example2 --wandb-run-path <entity>/furuta_pendulum/<run_id>
 ```
 
